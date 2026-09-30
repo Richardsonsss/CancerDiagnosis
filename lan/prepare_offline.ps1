@@ -36,7 +36,7 @@ $dist = Join-Path $root "web\dist"
 if (-not (Test-Path (Join-Path $dist "index.html"))) {
     if (Get-Command npm -ErrorAction SilentlyContinue) {
         Push-Location (Join-Path $root "web"); npm ci; npm run build; Pop-Location
-    } else { throw "web\dist is missing and Node.js is not installed - use the release bundle, which contains web\dist" }
+    } else { throw "web\dist is missing and Node.js is not installed - install Node.js 24 (nodejs.org), or download CancerDiagnosis_lan.zip from the GitHub Releases page, which contains web\dist" }
 }
 New-Item -ItemType Directory -Force (Join-Path $root "models") | Out-Null
 & $py -c "import onnxruntime as o; print('ONNX Runtime', o.__version__, '| providers:', ', '.join(o.get_available_providers()))"
