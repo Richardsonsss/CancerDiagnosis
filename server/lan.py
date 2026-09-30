@@ -160,7 +160,8 @@ def main():
     os.environ["WEB_DIR"] = args.web_dir
     os.environ.setdefault("MODELS_S3_URI", "")  # offline: never try to reach S3
     if not os.path.isdir(args.web_dir):
-        sys.exit(f"web app not found in {args.web_dir} - it is part of the release bundle (web/dist)")
+        sys.exit(f"web app not found in {args.web_dir} - run lan/prepare_offline.ps1 (builds it with Node.js 24), "
+                 "or download CancerDiagnosis_lan.zip from the GitHub Releases page")
 
     ips = lan_addresses()
     ssl = {}
