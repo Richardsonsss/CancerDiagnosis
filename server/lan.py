@@ -140,6 +140,8 @@ def print_banner(urls, ca_url):
         print("  Scan the QR code with the iPhone camera.")
     except ImportError:
         pass
+    except UnicodeEncodeError:  # console or log file that cannot show block characters: the address above is enough
+        print()
     if ca_url:
         print(f"  First time on a phone: install the certificate from {ca_url}")
         print("  then Settings > General > About > Certificate Trust Settings > enable full trust.")
