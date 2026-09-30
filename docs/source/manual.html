@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cancer Image Diagnosis System - Architecture and User Guide</title>
+</head>
+<body>
+
+<p class="cover-title">Cancer Image Diagnosis System</p>
+<p class="cover-sub">Architecture and User Guide</p>
+<p class="cover-meta">Version 2.2 · September 2026</p>
+<p class="cover-meta">For non-commercial use</p>
+
+<br style="page-break-before:always" clear="all">
+<p><b>Contents</b></p>
+<p>[[TOC]]</p>
+
+<br style="page-break-before:always" clear="all">
+
+<h1>1 Overview</h1>
+<p>Describe a cancer type in any language. The system picks a public dataset and the best deep-learning models, trains a voting ensemble, and serves it to phone and computer browsers, either on a server or on an offline local network.</p>
+<p>[[IMG:en/overview.png]]</p>
+<p class="caption">Figure 1  System architecture</p>
+<p class="note">For <b>non-commercial use</b> under the PolyForm Noncommercial License 1.0.0.</p>
+<h2>1.1 Features</h2>
+<ul>
+  <li><b>Any-language prompt</b>: a local language model maps the request to a supported cancer type, or rejects it.</li>
+  <li><b>Automatic dataset and model choice</b>: 6 public datasets; 37 core models plus the newest on Hugging Face, or any model you add.</li>
+  <li><b>Voting ensemble</b>: majority, Borda or exponential voting chosen on validation data, with a referral threshold at 95% malignant sensitivity.</li>
+  <li><b>Browser app</b>: phones and computers; the camera opens directly; the result is plain text below the photo, with no numbers.</li>
+  <li><b>Offline mode</b>: a local computer serves phones over Wi-Fi or a hotspot with no internet; scan a QR code to connect.</li>
+  <li><b>Fast</b>: GPU when available, otherwise INT8 on the CPU; 0.13-0.5 s per photo measured.</li>
+</ul>
+
+<h1>2 Scenario 1: Train a model</h1>
+<p><b>Where</b>: any Linux VM with an NVIDIA GPU (16 GB+), about 50 GB of disk, internet access.</p>
+<p>[[IMG:en/training.png]]</p>
+<p class="caption">Figure 2  Training pipeline and commands</p>
+<table>
+  <tr><th style="width:18%">Step</th><th style="width:82%">What happens</th></tr>
+  <tr><td>Understand</td><td>a local language model (Qwen3-4B) reads the prompt; if it cannot load, the prompt is translated and matched by keywords; unsupported types are rejected</td></tr>
+  <tr><td>Download</td><td>the matching public dataset, split into train / validation / test (by patient or lesion where available)</td></tr>
+  <tr><td>Screen</td><td>37 core models (incl. DINOv2/v3, SigLIP 2, ConvNeXt V2, MedSigLIP) plus optional newest models; each trained briefly</td></tr>
+  <tr><td>Train</td><td>the best 5 that can be exported to ONNX; class-weighted loss; automatic batch reduction on out-of-memory</td></tr>
+  <tr><td>Choose voting</td><td>majority / Borda / exponential voting and a referral threshold, picked on the validation set; never shown in the app</td></tr>
+  <tr><td>Export</td><td>ONNX (current PyTorch exporter), verified against PyTorch; INT8 kept only where faster → <code>artifacts/&lt;type&gt;_package.zip</code></td></tr>
+</table>
+<p>Examples: <code>run_train.sh "Quiero reconocer el cáncer de piel"</code> · <code>--pool latest</code> · <code>--add_model hf:facebook/dinov2-base</code> · <code>--task lung --epochs 5</code>. Re-running the same command resumes an interrupted run.</p>
+
+<h1>3 Scenario 2: Serve on a server (Docker)</h1>
+<p><b>Where</b>: any Docker host; CPU is enough, about 2 GB RAM per model package.</p>
+<p>[[IMG:en/server.png]]</p>
+<p class="caption">Figure 3  Server deployment</p>
+<pre>cp .env.example .env                 # set ACCESS_TOKEN
+mkdir -p models                      # copy *_package.zip here
+docker compose up -d --build
+docker compose exec diagnosis python benchmark.py   # check diagnosis time</pre>
+<p>Public addresses need HTTPS: put a reverse proxy or load balancer (Nginx, Caddy, AWS ALB, Azure Application Gateway, ...) in front of port 8000. New model: copy the package into <code>models/</code>, then run <code>docker compose restart</code>.</p>
+
+<h1>4 Scenario 3: Offline local network (no internet)</h1>
+<p><b>Where</b>: a Windows / macOS / Linux computer that holds the model packages; phones on the same network.</p>
+<p>[[IMG:en/lan.png]]</p>
+<p class="caption">Figure 4  Offline local-network mode</p>
+<ul>
+  <li><b>Never-online computer</b>: run <code>prepare_offline.ps1 -Wheelhouse</code> on an online computer, copy the project folder, then run <code>prepare_offline.ps1 -FromWheelhouse</code>. macOS / Linux: <code>bash lan/start_lan.sh --prepare</code>, then <code>bash lan/start_lan.sh</code>.</li>
+  <li><b>Install as an app (optional)</b>: start with <code>-Https</code>; on each iPhone once, open <code>https://&lt;address&gt;/lan/ca.crt</code>, install the profile, then enable it in Settings › General › About › Certificate Trust Settings.</li>
+  <li><b>GPU</b>: <code>prepare_offline.ps1 -Gpu</code> uses DirectML (any DirectX 12 GPU); NVIDIA CUDA is picked up automatically.</li>
+  <li><b>Speed</b>: 0.13 s per photo (22 CPU threads), 0.5 s (4 cores), 0.17 s phone upload over local HTTPS.</li>
+</ul>
+
+<h1>5 Scenario 4: Diagnose with a phone or computer</h1>
+<p>[[IMG:en/app.png|78]]</p>
+<p class="caption">Figure 5  The web app (real screenshots)</p>
+<p>Open the address (or scan the QR code) in Safari / Chrome / Edge / Firefox → choose the cancer type → <b>Take photo</b> or <b>Choose from library</b>. The result appears below the photo, with no numbers.</p>
+<table>
+  <tr><th style="width:16%">Colour</th><th style="width:84%">Meaning</th></tr>
+  <tr><td>Red</td><td>suspected malignant (or cannot be ruled out); see a doctor</td></tr>
+  <tr><td>Green</td><td>most likely benign</td></tr>
+  <tr><td>Yellow</td><td>uncertain; retake the photo or see a doctor</td></tr>
+</table>
+<p>Tips: good light, in focus, lesion in the centre. For skin photos choose Skin cancer (smartphone photo). Upload original ultrasound / histology / MRI images, not photos of a screen.</p>
+
+<h1>6 Project structure and files per computer</h1>
+<pre>training/   prompt → dataset → screening → training → voting → ONNX package
+common/     voting and image preprocessing shared by training and serving
+server/     FastAPI + ONNX Runtime service; lan.py (offline mode); benchmark.py
+web/        React + TypeScript browser app (PWA)
+lan/        setup / start scripts for an offline local computer
+docs/       diagrams, screenshots and this guide
+Dockerfile, docker-compose.yml, .env.example</pre>
+<p>[[IMG:en/where.png]]</p>
+<p class="caption">Figure 6  What goes on which computer</p>
+
+<h1>7 Reference</h1>
+<h2>7.1 Supported cancer types</h2>
+<table>
+  <tr><th style="width:30%">Task</th><th style="width:42%">Dataset (licence)</th><th style="width:28%">Images</th></tr>
+  <tr><td><code>skin_phone</code> (default for skin)</td><td>PAD-UFES-20 (CC BY 4.0)</td><td>smartphone photos</td></tr>
+  <tr><td><code>skin</code> (prompt mentions dermoscopy)</td><td>HAM10000 (CC BY-NC 4.0)</td><td>dermoscopy</td></tr>
+  <tr><td><code>breast</code></td><td>BreastMNIST (CC BY 4.0)</td><td>ultrasound</td></tr>
+  <tr><td><code>colorectal</code></td><td>PathMNIST (CC BY 4.0)</td><td>H&amp;E histology</td></tr>
+  <tr><td><code>lung</code></td><td>LC25000 lung (CC BY 4.0)</td><td>H&amp;E histology</td></tr>
+  <tr><td><code>brain</code></td><td>Brain Tumor MRI (CC0)</td><td>MRI</td></tr>
+</table>
+
+<h2>7.2 Training options</h2>
+<table>
+  <tr><th style="width:24%">Option</th><th style="width:14%">Default</th><th style="width:62%">Meaning</th></tr>
+  <tr><td><code>--task</code></td><td>-</td><td>task id instead of a prompt</td></tr>
+  <tr><td><code>--pool</code></td><td>core</td><td>core (37) · quick (10) · latest (core + newest on Hugging Face)</td></tr>
+  <tr><td><code>--add_model</code></td><td>-</td><td><code>timm:&lt;id&gt;</code> or <code>hf:&lt;repo&gt;</code>, repeatable</td></tr>
+  <tr><td><code>--top_k</code></td><td>5</td><td>ensemble members (fewer = faster)</td></tr>
+  <tr><td><code>--epochs</code></td><td>10</td><td>use 3 for colorectal (about 90,000 images)</td></tr>
+  <tr><td><code>--quantize</code></td><td>auto</td><td>INT8 members: auto · int8 · fp32</td></tr>
+  <tr><td><code>--prompt_model</code></td><td>llm</td><td>llm · translate · keywords</td></tr>
+  <tr><td><code>--s3_uri</code></td><td>-</td><td>also upload the package to S3</td></tr>
+</table>
+
+<h2>7.3 Service settings, API and privacy</h2>
+<table>
+  <tr><th style="width:22%">Item</th><th style="width:78%">Details</th></tr>
+  <tr><td>Environment variables</td><td><code>ACCESS_TOKEN</code> (access code) · <code>MODELS_S3_URI</code> (optional S3 sync) · <code>ORT_PROVIDERS</code> (hardware order, default CUDA → DirectML → CPU) · <code>MAX_UPLOAD_MB</code> (15) · <code>CORS_ORIGINS</code> · <code>LOG_LEVEL</code></td></tr>
+  <tr><td>API</td><td><code>GET /api/health</code> · <code>GET /api/tasks</code> · <code>POST /api/diagnose</code> (task_id, image → level, verdict, advice) · <code>GET /api/docs</code></td></tr>
+  <tr><td>Privacy</td><td>photos are processed in memory only, never stored or logged; in local-network mode nothing leaves the network</td></tr>
+  <tr><td>Stack (pinned)</td><td>PyTorch 2.14 · timm 1.0.30 · Transformers 5.17 · ONNX Runtime 1.30 · FastAPI · React 19 · TypeScript 7 · Vite 8 · Docker (Node 24, Python 3.12)</td></tr>
+</table>
+
+<h1>8 Troubleshooting</h1>
+<table>
+  <tr><th style="width:34%">Problem</th><th style="width:66%">Fix</th></tr>
+  <tr><td>Prompt rejected</td><td>name a supported cancer type, or use <code>--task</code></td></tr>
+  <tr><td>Language model does not load</td><td>falls back to translation automatically; or <code>--prompt_model translate</code></td></tr>
+  <tr><td>A candidate model is skipped</td><td>normal (gated, unsupported, not exportable); see <code>screening.json</code> / <code>exportable.json</code></td></tr>
+  <tr><td>CUDA out of memory</td><td>retried automatically with a smaller batch; stop other GPU jobs</td></tr>
+  <tr><td>Phone cannot open the address</td><td>same network? run <code>start_lan.ps1 -OpenFirewall</code>; corporate Wi-Fi may block devices, so use a hotspot</td></tr>
+  <tr><td>Certificate warning in Safari</td><td>trust the local certificate (Scenario 3) or start without <code>-Https</code></td></tr>
+  <tr><td>"No models are installed"</td><td>put <code>*_package.zip</code> in <code>models/</code> and restart</td></tr>
+  <tr><td>Diagnosis slower than 2 s</td><td>run <code>benchmark.py</code>; use a GPU (<code>-Gpu</code>) or train with <code>--top_k 3</code></td></tr>
+</table>
+
+<h1>9 Licence and acknowledgements</h1>
+<p>For non-commercial use under the PolyForm Noncommercial License 1.0.0. Non-commercially licensed datasets and models (e.g. HAM10000, ConvNeXt V2, EUPE, Hiera) are therefore included; gated models such as MedSigLIP need <code>HF_TOKEN</code> and accepted terms on Hugging Face. Each ensemble member's licence is recorded in its model package.</p>
+<p>Datasets: PAD-UFES-20 (Pacheco et al., 2020) · HAM10000 (Tschandl et al., 2018) · MedMNIST+ (Yang et al., 2023) · LC25000 (Borkowski et al., 2019) · Brain Tumor MRI (Nickparvar, 2021). Models via timm and Hugging Face Transformers.</p>
+
+</body>
+</html>

@@ -1,0 +1,17 @@
+# Run the diagnosis service on a server (e.g. an EC2 instance with Docker installed).
+#   docker compose up -d --build
+# Settings come from a .env file next to this file (see .env.example).
+services:
+  diagnosis:
+    build: .
+    image: cancer-diagnosis:latest
+    restart: unless-stopped
+    ports:
+      - "${PORT:-80}:8000"
+    environment:
+      MODELS_S3_URI: ${MODELS_S3_URI:-}
+      ACCESS_TOKEN: ${ACCESS_TOKEN:-}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      # model packages: synced from S3, or drop <task>_package.zip files here and restart
+      - ./models:/models

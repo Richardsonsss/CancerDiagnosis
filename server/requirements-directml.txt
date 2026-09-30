@@ -1,0 +1,11 @@
+# Windows computers with a GPU: same as requirements.txt, with the DirectML build of ONNX Runtime.
+fastapi==0.142.1
+uvicorn[standard]==0.54.0
+python-multipart==0.0.32
+onnxruntime-directml==1.24.4   # any DirectX 12 GPU on Windows (NVIDIA, AMD, Intel)
+numpy==2.5.3
+pillow==12.3.0
+pillow-heif==1.8.0        # iPhone HEIC photos
+qrcode==8.2               # LAN mode: QR code with the address for the phone
+cryptography==50.0.1      # LAN mode: local HTTPS certificate
+boto3==1.43.105           # optional: sync model packages from S3
