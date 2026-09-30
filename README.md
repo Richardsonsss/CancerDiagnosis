@@ -70,6 +70,8 @@ front of port 8000. New model: copy the package into `models/`, then `docker com
 
 ![Offline local network](docs/images/en/lan.png)
 
+- **Get the files:** download `CancerDiagnosis_lan.zip` from [Releases](../../releases) (web app included), or clone
+  this repository and install [Node.js 24](https://nodejs.org) once - the setup script then builds the web app.
 - **Never-online computer:** run `prepare_offline.ps1 -Wheelhouse` on an online computer, copy the project folder,
   then `prepare_offline.ps1 -FromWheelhouse`. macOS / Linux: `bash lan/start_lan.sh --prepare`, then `bash lan/start_lan.sh`.
 - **Install as an app (optional):** start with `-Https`; on each iPhone once, open `https://<address>/lan/ca.crt`,
